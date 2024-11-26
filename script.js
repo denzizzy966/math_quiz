@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let numbers = [];
     let operator = '';
     let result = 0;
+    let startTime;
+    let endTime;
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -50,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startQuizButton.addEventListener('click', startQuiz);
 
     function startQuiz() {
+        startTime = new Date();
         quizScreen.classList.remove('hidden');
         document.documentElement.requestFullscreen().catch(err => console.log(err));
         
@@ -65,11 +68,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
+    async function saveQuizToDatabase(quizData) {
+        try {
+            const response = await fetch('/api/quiz', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(quizData)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save quiz');
+            }
+            
+            const data = await response.json();
+            console.log('Quiz saved successfully:', data);
+        } catch (error) {
+            console.error('Error saving quiz:', error);
+        }
+    }
+
     function showResult() {
+        endTime = new Date();
+        const speed = (endTime - startTime) / 1000; // in seconds
+        
         numberDisplay.classList.add('hidden');
         quizResult.textContent = result;
         quizResult.classList.remove('hidden');
         quizResult.classList.add('celebrate');
+        
+        // Save quiz data to MongoDB
+        const quizData = {
+            rows: numbers.map(number => ({ number, operator })),
+            result: result,
+            speed: speed
+        };
+        
+        saveQuizToDatabase(quizData);
         
         setTimeout(() => {
             quizScreen.classList.add('hidden');
@@ -80,4 +116,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 });
-
