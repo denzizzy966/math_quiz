@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Quiz Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Math Quiz Generator</h1>
+        <form id="quizForm">
+            <label for="numberInput">Enter numbers (comma-separated):</label>
+            <input type="text" id="numberInput" required>
+            <label for="operatorInput">Enter operator (+, -, *, /):</label>
+            <input type="text" id="operatorInput" required>
+            <button type="submit">Generate Quiz</button>
+        </form>
+        <table id="resultTable">
+            <thead>
+                <tr>
+                    <th>Numbers</th>
+                    <th>Operator</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2" id="result"></td>
+                </tr>
+            </tfoot>
+        </table>
+        <button id="startQuiz" style="display: none;">Start Quiz</button>
+    </div>
+    <div id="quizScreen" class="hidden">
+        <div id="number"></div>
+        <div id="quizResult" class="hidden"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+
