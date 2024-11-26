@@ -7,11 +7,28 @@ export async function POST(request) {
         await connectDB();
         
         const data = await request.json();
+        
+        // Validate required fields
+        if (!data.numbers || !Array.isArray(data.numbers) || data.numbers.length === 0) {
+            return NextResponse.json(
+                { success: false, error: "Numbers array is required and must not be empty" },
+                { status: 400 }
+            );
+        }
+
+        if (!data.operator) {
+            return NextResponse.json(
+                { success: false, error: "Operator is required" },
+                { status: 400 }
+            );
+        }
+
+        // Create quiz without passing _id (let MongoDB generate it)
         const quiz = new Quiz({
             numbers: data.numbers,
             operator: data.operator,
             result: data.result,
-            speed: data.speed
+            speed: data.speed || 0 // Default to 0 if not provided
         });
         
         const savedQuiz = await quiz.save();
@@ -19,7 +36,11 @@ export async function POST(request) {
     } catch (error) {
         console.error('Error saving quiz:', error);
         return NextResponse.json(
-            { success: false, error: error.message },
+            { 
+                success: false, 
+                error: "Failed to create quiz",
+                details: error.message 
+            },
             { status: 500 }
         );
     }
