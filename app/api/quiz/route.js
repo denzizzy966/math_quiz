@@ -6,126 +6,107 @@ export async function POST(request) {
     try {
         await connectDB();
         
-        const data = await request.json();
-        console.log('Received quiz data:', data);
+        const rawData = await request.json();
+        console.log('Raw data received:', rawData);
 
-        // Remove any _id field if it exists to let MongoDB generate it
-        const { _id, ...quizData } = data;
+        // Remove any ID-related fields that might cause BSON errors
+        const cleanData = Object.fromEntries(
+            Object.entries(rawData).filter(([key]) => !key.includes('id') && !key.includes('_id'))
+        );
+        console.log('Cleaned data:', cleanData);
 
-        // Transform rows data into the expected format
-        let transformedData = {};
+        // Extract and validate numbers from rows
+        const numbers = cleanData.rows?.map(row => Number(row.number))
+            .filter(num => !isNaN(num)) || [];
+
+        // Find the last operator in the rows
+        const operator = cleanData.rows?.slice()
+            .reverse()
+            .find(row => row.operator)?.operator;
+
+        // Create the quiz data object with only the required fields
+        const quizData = {
+            numbers,
+            operator,
+            result: Number(cleanData.result) || 0,
+            speed: Number(cleanData.speed) || 0
+        };
+        console.log('Transformed quiz data:', quizData);
+
+        // Validate before creating the document
+        if (!numbers.length) {
+            return NextResponse.json({
+                success: false,
+                error: "Validation error",
+                details: "Quiz must have at least one number"
+            }, { status: 400 });
+        }
+
+        if (!operator || !['+', '-', '*', '/'].includes(operator)) {
+            return NextResponse.json({
+                success: false,
+                error: "Validation error",
+                details: "Valid operator is required (+, -, *, /)"
+            }, { status: 400 });
+        }
+
+        // Create and save the quiz with clean data
+        const quiz = new Quiz(quizData);
+        console.log('Quiz model before save:', quiz);
         
-        if (data.rows && Array.isArray(data.rows)) {
-            // Extract numbers from rows
-            transformedData.numbers = data.rows
-                .filter(row => row.number !== undefined && row.number !== null)
-                .map(row => Number(row.number));
-
-            // Get the operator from the last row that has one
-            const operatorRow = [...data.rows].reverse().find(row => row.operator);
-            transformedData.operator = operatorRow?.operator;
-        }
-
-        // Add other required fields
-        transformedData.result = Number(data.result || 0);
-        transformedData.speed = Number(data.speed || 0);
-
-        // Validate the transformed data
-        if (!transformedData.numbers || transformedData.numbers.length === 0) {
-            return NextResponse.json(
-                { 
-                    success: false, 
-                    error: "Invalid input",
-                    details: "Quiz must have at least one number"
-                },
-                { status: 400 }
-            );
-        }
-
-        if (!transformedData.operator || !['+', '-', '*', '/'].includes(transformedData.operator)) {
-            return NextResponse.json(
-                { 
-                    success: false, 
-                    error: "Invalid input",
-                    details: "Valid operator is required (+, -, *, /)"
-                },
-                { status: 400 }
-            );
-        }
-
-        // Create new quiz document without any _id field
-        const quiz = new Quiz(transformedData);
-        
-        console.log('Attempting to save quiz:', quiz);
         const savedQuiz = await quiz.save();
-        console.log('Successfully saved quiz:', savedQuiz);
-        
-        return NextResponse.json({ 
-            success: true, 
-            quiz: savedQuiz 
+        console.log('Saved quiz:', savedQuiz);
+
+        return NextResponse.json({
+            success: true,
+            quiz: savedQuiz
         });
     } catch (error) {
-        console.error('Error saving quiz:', error);
+        console.error('Full error object:', error);
         
-        // Handle Mongoose validation errors
         if (error.name === 'ValidationError') {
-            return NextResponse.json(
-                { 
-                    success: false, 
-                    error: "Validation error",
-                    details: Object.values(error.errors)
-                        .map(err => err.message)
-                        .join(', ')
-                },
-                { status: 400 }
-            );
+            const errorDetails = Object.values(error.errors)
+                .map(err => err.message)
+                .join(', ');
+                
+            return NextResponse.json({
+                success: false,
+                error: "Validation error",
+                details: errorDetails
+            }, { status: 400 });
         }
 
-        // Handle BSON errors
         if (error.name === 'BSONError') {
-            return NextResponse.json(
-                { 
-                    success: false, 
-                    error: "Invalid data format",
-                    details: "Unable to process the quiz data format"
-                },
-                { status: 400 }
-            );
+            return NextResponse.json({
+                success: false,
+                error: "Data format error",
+                details: "Invalid document format. Please check your input data."
+            }, { status: 400 });
         }
 
-        return NextResponse.json(
-            { 
-                success: false, 
-                error: "Failed to create quiz",
-                details: error.message 
-            },
-            { status: 500 }
-        );
+        return NextResponse.json({
+            success: false,
+            error: "Failed to create quiz",
+            details: error.message
+        }, { status: 500 });
     }
 }
 
 export async function GET() {
     try {
         await connectDB();
-        
         const quizzes = await Quiz.find({})
             .sort({ createdAt: -1 })
             .limit(10)
             .lean();
             
-        return NextResponse.json({ 
-            success: true, 
-            quizzes 
-        });
+        return NextResponse.json({ success: true, quizzes });
     } catch (error) {
         console.error('Error fetching quizzes:', error);
-        return NextResponse.json(
-            { 
-                success: false, 
-                error: "Failed to fetch quizzes",
-                details: error.message 
-            },
-            { status: 500 }
-        );
+        return NextResponse.json({
+            success: false,
+            error: "Failed to fetch quizzes",
+            details: error.message
+        }, { status: 500 });
     }
 }
