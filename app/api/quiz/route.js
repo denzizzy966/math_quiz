@@ -5,13 +5,13 @@ import Quiz from '../../../models/Quiz';
 export async function POST(request) {
     try {
         await connectDB();
-        
+
         const data = await request.json();
         console.log('Received data:', data);
 
         // Destructure only the fields we need, explicitly ignoring id
         const { rows, result, speed } = data;
-        
+
         if (!Array.isArray(rows) || rows.length === 0) {
             return NextResponse.json({
                 success: false,
@@ -21,8 +21,21 @@ export async function POST(request) {
         }
 
         // Extract numbers and last operator
-        const numbers = rows.map(row => Number(row.number));
-        const lastOperator = rows[rows.length - 1].operator;
+        const numbers = rows.map(row => {
+            if (typeof row.number !== 'number') {
+                throw new Error('Each row must have a valid "number" field.');
+            }
+            return row.number;
+        });
+        const lastOperator = rows[rows.length - 1]?.operator;
+
+        if (!lastOperator) {
+            return NextResponse.json({
+                success: false,
+                error: "Validation error",
+                details: "Operator is required."
+            }, { status: 400 });
+        }
 
         // Create quiz data with only the fields defined in our schema
         const quizData = {
@@ -37,19 +50,19 @@ export async function POST(request) {
         // Create and save the quiz
         const quiz = new Quiz(quizData);
         const savedQuiz = await quiz.save();
-        
+
         return NextResponse.json({
             success: true,
             quiz: savedQuiz
         });
     } catch (error) {
         console.error('Error creating quiz:', error);
-        
+
         if (error.name === 'ValidationError') {
             const errorDetails = Object.values(error.errors)
                 .map(err => err.message)
                 .join(', ');
-                
+
             return NextResponse.json({
                 success: false,
                 error: "Validation error",
@@ -64,6 +77,7 @@ export async function POST(request) {
         }, { status: 500 });
     }
 }
+
 
 export async function GET() {
     try {
