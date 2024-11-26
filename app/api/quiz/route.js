@@ -7,31 +7,39 @@ export async function POST(request) {
         await connectDB();
         
         const data = await request.json();
-        
-        // Validate required fields
-        if (!data.numbers || !Array.isArray(data.numbers) || data.numbers.length === 0) {
+        console.log('Received quiz data:', data);
+
+        // Transform the rows data into the format our schema expects
+        const numbers = data.rows.map(row => row.number);
+        const operator = data.rows[data.rows.length - 1].operator; // Get the last operator
+
+        // Validate transformed data
+        if (!numbers || numbers.length === 0) {
             return NextResponse.json(
                 { success: false, error: "Numbers array is required and must not be empty" },
                 { status: 400 }
             );
         }
 
-        if (!data.operator) {
+        if (!operator) {
             return NextResponse.json(
                 { success: false, error: "Operator is required" },
                 { status: 400 }
             );
         }
 
-        // Create quiz without passing _id (let MongoDB generate it)
+        // Create quiz with transformed data
         const quiz = new Quiz({
-            numbers: data.numbers,
-            operator: data.operator,
+            numbers: numbers,
+            operator: operator,
             result: data.result,
-            speed: data.speed || 0 // Default to 0 if not provided
+            speed: data.speed || 0
         });
         
+        console.log('Saving quiz:', quiz);
         const savedQuiz = await quiz.save();
+        console.log('Saved quiz:', savedQuiz);
+        
         return NextResponse.json({ success: true, quiz: savedQuiz });
     } catch (error) {
         console.error('Error saving quiz:', error);
