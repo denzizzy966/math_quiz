@@ -35,12 +35,16 @@ export default function MathQuiz() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      // Transform MongoDB _id to client id if needed
-      const transformedData = data.map((quiz: any) => ({
-        ...quiz,
-        id: quiz.id || Date.now() // Use existing id or generate new one
-      }));
-      setQuizHistory(transformedData);
+      // Check if data.quizzes exists and is an array
+      if (data.quizzes && Array.isArray(data.quizzes)) {
+        const transformedData = data.quizzes.map((quiz: any) => ({
+          ...quiz,
+          id: quiz._id || quiz.id || Date.now() // Use MongoDB _id, existing id, or generate new one
+        }));
+        setQuizHistory(transformedData);
+      } else {
+        console.error('Invalid quiz data format:', data);
+      }
     } catch (error) {
       console.error('Failed to fetch quiz history:', error);
     }
