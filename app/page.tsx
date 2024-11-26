@@ -9,7 +9,8 @@ import QuizSelector from '../components/QuizSelector'
 import QuizHistory from '../components/QuizHistory'
 
 interface Quiz {
-  id: number;
+  _id?: string;  // MongoDB ID
+  id: number;    // Client-side ID
   rows: { number: number; operator: string }[];
   result: number;
   speed: number;
@@ -28,9 +29,21 @@ export default function MathQuiz() {
   }, []);
 
   const fetchQuizHistory = async () => {
-    const response = await fetch('/api/quizzes');
-    const data = await response.json();
-    setQuizHistory(data);
+    try {
+      const response = await fetch('/api/quizzes');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      // Transform MongoDB _id to client id if needed
+      const transformedData = data.map((quiz: any) => ({
+        ...quiz,
+        id: quiz.id || Date.now() // Use existing id or generate new one
+      }));
+      setQuizHistory(transformedData);
+    } catch (error) {
+      console.error('Failed to fetch quiz history:', error);
+    }
   };
 
   const handleQuizGenerate = async (newRows: { number: number; operator: string }[], newSpeed: number) => {
@@ -172,4 +185,3 @@ export default function MathQuiz() {
     </div>
   )
 }
-
