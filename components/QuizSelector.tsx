@@ -19,7 +19,7 @@ interface QuizSelectorProps {
 }
 
 export default function QuizSelector({ 
-  quizzes, 
+  quizzes = [], 
   selectedQuiz, 
   onSelectQuiz, 
   isMultipleQuiz, 
@@ -32,6 +32,11 @@ export default function QuizSelector({
   const toggleQuizExpansion = (id: number) => {
     setExpandedQuiz(expandedQuiz === id ? null : id);
   };
+
+  if (!Array.isArray(quizzes)) {
+    console.error('quizzes prop is not an array:', quizzes);
+    return null;
+  }
 
   return (
     <div className="mb-4">
@@ -47,62 +52,65 @@ export default function QuizSelector({
           Multiple Quiz Mode
         </label>
       </div>
-      <Droppable droppableId="quizList">
-        {(provided) => (
-          <div {...provided.droppableProps} ref={provided.innerRef}>
-            {quizzes.map((quiz, index) => (
-              <Draggable key={quiz.id} draggableId={quiz.id.toString()} index={index}>
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    {...provided.dragHandleProps}
-                    className="mb-2 p-2 border rounded bg-white"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span 
-                        className="cursor-pointer"
-                        onClick={() => toggleQuizExpansion(quiz.id)}
-                      >
-                        Soal No {index + 1} - {quiz.rows.length} numbers, Speed: {quiz.speed}ms
-                      </span>
-                      <div>
-                        <button 
-                          onClick={() => onStartQuiz(index)}
-                          className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
+      {quizzes.length === 0 ? (
+        <p className="text-gray-500">No quizzes available yet. Create one using the form above.</p>
+      ) : (
+        <Droppable droppableId="quizList">
+          {(provided) => (
+            <div {...provided.droppableProps} ref={provided.innerRef}>
+              {quizzes.map((quiz, index) => (
+                <Draggable key={quiz.id} draggableId={quiz.id.toString()} index={index}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      className="mb-2 p-2 border rounded bg-white"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span 
+                          className="cursor-pointer"
+                          onClick={() => toggleQuizExpansion(quiz.id)}
                         >
-                          Mulai
-                        </button>
-                        <button 
-                          onClick={() => onDeleteQuiz(quiz.id)}
-                          className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    </div>
-                    {expandedQuiz === quiz.id && (
-                      <div className="mt-2">
-                        <h3 className="font-bold">Detail Soal:</h3>
-                        <div className="flex flex-wrap">
-                          {quiz.rows.map((row, rowIndex) => (
-                            <span key={rowIndex} className="mr-2">
-                              {rowIndex > 0 && row.operator} {row.number}
-                            </span>
-                          ))}
-                          <span>= {quiz.result}</span>
+                          Soal No {index + 1} - {quiz.rows.length} numbers, Speed: {quiz.speed}ms
+                        </span>
+                        <div>
+                          <button 
+                            onClick={() => onStartQuiz(index)}
+                            className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
+                          >
+                            Mulai
+                          </button>
+                          <button 
+                            onClick={() => onDeleteQuiz(quiz.id)}
+                            className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                          >
+                            Hapus
+                          </button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                )}
-              </Draggable>
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
+                      {expandedQuiz === quiz.id && (
+                        <div className="mt-2">
+                          <h3 className="font-bold">Detail Soal:</h3>
+                          <div className="flex flex-wrap">
+                            {quiz.rows.map((row, rowIndex) => (
+                              <span key={rowIndex} className="mr-2">
+                                {rowIndex > 0 && row.operator} {row.number}
+                              </span>
+                            ))}
+                            <span>= {quiz.result}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      )}
     </div>
   )
 }
-

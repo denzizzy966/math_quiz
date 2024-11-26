@@ -23,30 +23,44 @@ export default function MathQuiz() {
   const [isMultipleQuiz, setIsMultipleQuiz] = useState(false)
   const [currentQuizIndex, setCurrentQuizIndex] = useState(-1)
   const [quizHistory, setQuizHistory] = useState<Quiz[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchQuizHistory();
   }, []);
 
   const fetchQuizHistory = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const response = await fetch('/api/quizzes');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch quiz history');
+      }
       // Check if data.quizzes exists and is an array
       if (data.quizzes && Array.isArray(data.quizzes)) {
         const transformedData = data.quizzes.map((quiz: any) => ({
           ...quiz,
-          id: quiz._id || quiz.id || Date.now() // Use MongoDB _id, existing id, or generate new one
+          id: quiz._id || quiz.id || Date.now(), // Use MongoDB _id, existing id, or generate new one
+          rows: Array.isArray(quiz.rows) ? quiz.rows : [] // Ensure rows is always an array
         }));
         setQuizHistory(transformedData);
+        setQuizzes(transformedData); // Update quizzes state as well
       } else {
-        console.error('Invalid quiz data format:', data);
+        throw new Error('Invalid quiz data format received from server');
       }
     } catch (error) {
       console.error('Failed to fetch quiz history:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch quiz history');
+      setQuizHistory([]);
+      setQuizzes([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -150,42 +164,50 @@ export default function MathQuiz() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-4 text-center">Math Quiz Generator</h1>
-      <QuizForm onGenerate={handleQuizGenerate} />
-      {quizzes.length > 0 && (
-        <DragDropContext onDragEnd={onDragEnd}>
-          <QuizSelector 
-            quizzes={quizzes} 
-            selectedQuiz={selectedQuiz} 
-            onSelectQuiz={setSelectedQuiz}
-            isMultipleQuiz={isMultipleQuiz}
-            onToggleMultipleQuiz={setIsMultipleQuiz}
-            onStartQuiz={handleStartQuiz}
-            onDeleteQuiz={handleDeleteQuiz}
-          />
-        </DragDropContext>
-      )}
-      {selectedQuiz && !isMultipleQuiz && !showQuiz && (
+      {isLoading ? (
+        <p>Loading...</p>
+      ) : error ? (
+        <p style={{ color: 'red' }}>{error}</p>
+      ) : (
         <>
-          <ResultTable rows={selectedQuiz.rows} result={selectedQuiz.result} />
-          <button 
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            onClick={() => handleStartQuiz(quizzes.findIndex(q => q.id === selectedQuiz.id))}
-          >
-            Start Quiz
-          </button>
+          <QuizForm onGenerate={handleQuizGenerate} />
+          {quizzes.length > 0 && (
+            <DragDropContext onDragEnd={onDragEnd}>
+              <QuizSelector 
+                quizzes={quizzes} 
+                selectedQuiz={selectedQuiz} 
+                onSelectQuiz={setSelectedQuiz}
+                isMultipleQuiz={isMultipleQuiz}
+                onToggleMultipleQuiz={setIsMultipleQuiz}
+                onStartQuiz={handleStartQuiz}
+                onDeleteQuiz={handleDeleteQuiz}
+              />
+            </DragDropContext>
+          )}
+          {selectedQuiz && !isMultipleQuiz && !showQuiz && (
+            <>
+              <ResultTable rows={selectedQuiz.rows} result={selectedQuiz.result} />
+              <button 
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                onClick={() => handleStartQuiz(quizzes.findIndex(q => q.id === selectedQuiz.id))}
+              >
+                Start Quiz
+              </button>
+            </>
+          )}
+          {showQuiz && selectedQuiz && (
+            <QuizScreen 
+              rows={selectedQuiz.rows} 
+              result={selectedQuiz.result} 
+              speed={selectedQuiz.speed}
+              onFinish={handleQuizFinish}
+              currentQuizNumber={currentQuizIndex + 1}
+              totalQuizzes={quizzes.length}
+            />
+          )}
+          <QuizHistory quizzes={quizHistory} onSelectQuiz={handleSelectHistoryQuiz} />
         </>
       )}
-      {showQuiz && selectedQuiz && (
-        <QuizScreen 
-          rows={selectedQuiz.rows} 
-          result={selectedQuiz.result} 
-          speed={selectedQuiz.speed}
-          onFinish={handleQuizFinish}
-          currentQuizNumber={currentQuizIndex + 1}
-          totalQuizzes={quizzes.length}
-        />
-      )}
-      <QuizHistory quizzes={quizHistory} onSelectQuiz={handleSelectHistoryQuiz} />
     </div>
   )
 }
