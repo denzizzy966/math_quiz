@@ -6,63 +6,44 @@ export async function POST(request) {
     try {
         await connectDB();
         
-        const rawData = await request.json();
-        console.log('Raw data received:', rawData);
+        const data = await request.json();
+        console.log('Received data:', data);
 
-        // Remove any ID-related fields that might cause BSON errors
-        const cleanData = Object.fromEntries(
-            Object.entries(rawData).filter(([key]) => !key.includes('id') && !key.includes('_id'))
-        );
-        console.log('Cleaned data:', cleanData);
+        // Destructure only the fields we need, explicitly ignoring id
+        const { rows, result, speed } = data;
+        
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return NextResponse.json({
+                success: false,
+                error: "Validation error",
+                details: "Quiz must have at least one row"
+            }, { status: 400 });
+        }
 
-        // Extract and validate numbers from rows
-        const numbers = cleanData.rows?.map(row => Number(row.number))
-            .filter(num => !isNaN(num)) || [];
+        // Extract numbers and last operator
+        const numbers = rows.map(row => Number(row.number));
+        const lastOperator = rows[rows.length - 1].operator;
 
-        // Find the last operator in the rows
-        const operator = cleanData.rows?.slice()
-            .reverse()
-            .find(row => row.operator)?.operator;
-
-        // Create the quiz data object with only the required fields
+        // Create quiz data with only the fields defined in our schema
         const quizData = {
             numbers,
-            operator,
-            result: Number(cleanData.result) || 0,
-            speed: Number(cleanData.speed) || 0
+            operator: lastOperator,
+            result: Number(result),
+            speed: Number(speed)
         };
+
         console.log('Transformed quiz data:', quizData);
 
-        // Validate before creating the document
-        if (!numbers.length) {
-            return NextResponse.json({
-                success: false,
-                error: "Validation error",
-                details: "Quiz must have at least one number"
-            }, { status: 400 });
-        }
-
-        if (!operator || !['+', '-', '*', '/'].includes(operator)) {
-            return NextResponse.json({
-                success: false,
-                error: "Validation error",
-                details: "Valid operator is required (+, -, *, /)"
-            }, { status: 400 });
-        }
-
-        // Create and save the quiz with clean data
+        // Create and save the quiz
         const quiz = new Quiz(quizData);
-        console.log('Quiz model before save:', quiz);
-        
         const savedQuiz = await quiz.save();
-        console.log('Saved quiz:', savedQuiz);
-
+        
         return NextResponse.json({
             success: true,
             quiz: savedQuiz
         });
     } catch (error) {
-        console.error('Full error object:', error);
+        console.error('Error creating quiz:', error);
         
         if (error.name === 'ValidationError') {
             const errorDetails = Object.values(error.errors)
@@ -73,14 +54,6 @@ export async function POST(request) {
                 success: false,
                 error: "Validation error",
                 details: errorDetails
-            }, { status: 400 });
-        }
-
-        if (error.name === 'BSONError') {
-            return NextResponse.json({
-                success: false,
-                error: "Data format error",
-                details: "Invalid document format. Please check your input data."
             }, { status: 400 });
         }
 
