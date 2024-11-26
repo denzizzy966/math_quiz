@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const QuizSchema = new mongoose.Schema({
+  id: { type: Number, required: true },
   rows: [{ 
     number: Number, 
     operator: String 
@@ -11,4 +12,3 @@ const QuizSchema = new mongoose.Schema({
 });
 
 export default mongoose.models.Quiz || mongoose.model('Quiz', QuizSchema);
-
