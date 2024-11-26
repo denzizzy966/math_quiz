@@ -8,7 +8,7 @@ const Confettiful: React.FC = () => {
     if (!containerRef.current) return;
 
     const confettiColors = ['#EF2964', '#00C09D', '#2D87B0', '#48485E','#EFFF1D'];
-    const confettiAnimations = ['slow', 'medium', 'fast'];
+    const confettiAnimations = ['slow', 'medium', 'fast']
 
     const confettiInterval = setInterval(() => {
       const confettiEl = document.createElement('div');
@@ -23,15 +23,27 @@ const Confettiful: React.FC = () => {
       confettiEl.style.height = confettiSize;
       confettiEl.style.backgroundColor = confettiBackground;
       
-      confettiEl.removeTimeout = setTimeout(function() {
+      const timeoutId = setTimeout(function() {
         confettiEl.parentNode?.removeChild(confettiEl);
       }, 3000);
+      
+      confettiEl.setAttribute('data-timeout-id', timeoutId.toString());
       
       containerRef.current!.appendChild(confettiEl);
     }, 25);
 
     return () => {
       clearInterval(confettiInterval);
+      if (containerRef.current) {
+        const confettiElements = containerRef.current.getElementsByClassName('confetti');
+        Array.from(confettiElements).forEach((el) => {
+          const timeoutId = el.getAttribute('data-timeout-id');
+          if (timeoutId) {
+            clearTimeout(parseInt(timeoutId));
+          }
+          el.parentNode?.removeChild(el);
+        });
+      }
     };
   }, []);
 
@@ -39,4 +51,3 @@ const Confettiful: React.FC = () => {
 };
 
 export default Confettiful;
-
